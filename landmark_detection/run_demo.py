@@ -30,12 +30,12 @@ sys.path.insert(0, caffe_root + 'python')
 import caffe
 
 def get_center(point1, point2):
-    print point1, point2
+    #print point1, point2
     cent = [(point1[0]+point2[0])/2, (point1[1]+point2[1])/2]    
-    print 'center', cent
+    #print 'center', cent
     return cent
 
-def get_5pt(points):
+def gen_5pt(points):
     list = [] 
     list.append(points[34])
     list.append(points[37])
@@ -44,10 +44,14 @@ def get_5pt(points):
     list.append(points[46])
     list.append(points[49])
     list.append(points[55])
-    print 'org 7pt=', list
+
+    for i in range(len(list)):
+        list[i] = list[i]/2
+
+    #print 'org 7pt=', list
     a = np.array([points[33], get_center(points[36], points[39]), get_center(points[42], points[45]), points[48], points[54]])
-    print a
-    return a
+    #print a
+    return a/2
 
 def main(args):
 
@@ -95,7 +99,6 @@ def main(args):
     print args.imgDir
     indexAll = len(imageList)
     for i in imageList:
-        #i = Image(i).convert('RGB')
         # input images with size of 256x256
         if i.shape[0] != i.shape[1] or i.shape[0] != 256:
             zoomImg = scipy.ndimage.zoom(i.pixels, zoom=[1, 256 / float(i.shape[1]), 256 / float(i.shape[1])])
@@ -125,7 +128,7 @@ def main(args):
         np.savetxt(text_file, fr.shapes[-1].points, fmt='%d', newline='\n')
         
         five_pt_text_file = open(args.outDir + i.path.stem + '.5pt', "w")
-        five_pt_array = get_5pt(fr.shapes[-1].points)
+        five_pt_array = gen_5pt(fr.shapes[-1].points)
         np.savetxt(five_pt_text_file, five_pt_array, fmt='%d', newline='\n')
         
         text_file.close()
