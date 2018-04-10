@@ -81,54 +81,71 @@ def main(args):
     p2pErrs = []
     fitting_results = []
     indexCount = 0
-    imageList = mio.import_images(args.imgDir, verbose=True)
-    print args.imgDir
-    indexAll = len(imageList)
-    for i in imageList:
-        # input images with size of 256x256
-        if i.shape[0] != i.shape[1] or i.shape[0] != 256:
-            zoomImg = scipy.ndimage.zoom(i.pixels, zoom=[1, 256 / float(i.shape[1]), 256 / float(i.shape[1])])
-            i.pixels = zoomImg
-        # check whether the ground-truth is provided or not
-        try:
-            i.landmarks['PTS']
-        except:
-            i.landmarks['PTS'] = fit_model.reference_shape
-        # Estimation step, get response maps from FCN
-        net.blobs['data'].data[...] = transformer.preprocess('data', np.rollaxis(i.pixels, 0, 3))
-        i.rspmap_data = np.array(net.forward()['upsample'])
-        # zoom response maps
-        # i.rspmap_data = scipy.ndimage.zoom(i.rspmap_data, zoom=[1, 1, float(i.height) / i.rspmap_data.shape[-2],
-        #                                                               float(i.width) / i.rspmap_data.shape[-1]], order=1)  # mode = 'nearest'
+    print args.imgDir  
+    
+    dir_list = get_img_dir_list(args.imgDir)
+    #print 'dir_list:\n', dir_list
+    for img_dir in dir_list:
+        print 'load images from ', img_dir
+        imageList = mio.import_images(img_dir, verbose=True)
+        indexAll = len(imageList)
+        for i in imageList:
+            # input images with size of 256x256
+            if i.shape[0] != i.shape[1] or i.shape[0] != 256:
+                zoomImg = scipy.ndimage.zoom(i.pixels, zoom=[1, 256 / float(i.shape[1]), 256 / float(i.shape[1])])
+                i.pixels = zoomImg
+            # check whether the ground-truth is provided or not
+            try:
+                i.landmarks['PTS']
+            except:
+                i.landmarks['PTS'] = fit_model.reference_shape
+            # Estimation step, get response maps from FCN
+            net.blobs['data'].data[...] = transformer.preprocess('data', np.rollaxis(i.pixels, 0, 3))
+            i.rspmap_data = np.array(net.forward()['upsample'])
+            # zoom response maps
+            # i.rspmap_data = scipy.ndimage.zoom(i.rspmap_data, zoom=[1, 1, float(i.height) / i.rspmap_data.shape[-2],
+            #                                                               float(i.width) / i.rspmap_data.shape[-1]], order=1)  # mode = 'nearest'
 
-        gt_s = i.landmarks['PTS'].lms
-        s = rspimage.initial_shape_fromMap(i)
-        # fit image
-        fr = fitter.fit_from_shape(i, s, gt_shape=gt_s)
-        fitting_results.append(fr)
-        # calculate point-to-point Normalized Mean Error
-        Err = euclidean_distance_normalised_error(fr.shapes[-1], fr.gt_shape, distance_norm_f=inner_pupil)
-        p2pErrs.append(Err)
+            gt_s = i.landmarks['PTS'].lms
+            s = rspimage.initial_shape_fromMap(i)
+            # fit image
+            fr = fitter.fit_from_shape(i, s, gt_shape=gt_s)
+            fitting_results.append(fr)
+            # calculate point-to-point Normalized Mean Error
+            Err = euclidean_distance_normalised_error(fr.shapes[-1], fr.gt_shape, distance_norm_f=inner_pupil)
+            p2pErrs.append(Err)
 
-        text_file = open(args.outDir + i.path.stem + '.68pt', "w")
-        np.savetxt(text_file, fr.shapes[-1].points, fmt='%d', newline='\n')
-        
-        five_pt_text_file = open(args.outDir + i.path.stem + '.5pt', "w")
-        five_pt_array = gen_5pt(fr.shapes[-1].points)
-        np.savetxt(five_pt_text_file, five_pt_array, fmt='%d', newline='\n')
-        
-        text_file.close()
-        five_pt_text_file.close()
-        
-        indexCount = indexCount + 1
-        # sys.stdout.write('{} done;'.format(i.path.name))
-        sys.stdout.write('\r')
-        sys.stdout.write('{}/{} Done; '.format(indexCount,indexAll))
-        sys.stdout.flush()
+            text_file = open(args.outDir + i.path.stem + '.68pt', "w")
+            np.savetxt(text_file, fr.shapes[-1].points, fmt='%d', newline='\n')
+           
+            print img_dir + '/' + i.path.stem + '.5pt'
+            five_pt_text_file = open(img_dir + '/' + i.path.stem + '.5pt', "w")
+            five_pt_array = gen_5pt(fr.shapes[-1].points)
+            np.savetxt(five_pt_text_file, five_pt_array, fmt='%d', newline='\n')
+            
+            text_file.close()
+            five_pt_text_file.close()
+            
+            indexCount = indexCount + 1
+            # sys.stdout.write('{} done;'.format(i.path.name))
+            sys.stdout.write('\r')
+            sys.stdout.write('{}/{} Done; '.format(indexCount,indexAll))
+            sys.stdout.flush()
 
     p2pErrs = np.array(p2pErrs)
     print('NormalizedMeanError: {:.4f}'.format(average(p2pErrs)))
 
+def get_img_dir_list(path):
+    s = []
+    g = os.walk(path)
+    for path, dir_list, file_list in g:
+        #print 'dir_list:\n', dir_list
+        #print 'file_list:\n', file_list
+        for dir_name in dir_list:
+            #print os.path.join(path, dir_name)
+            s.append(os.path.join(path, dir_name))
+
+    return s
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='ECT for face alignment')
