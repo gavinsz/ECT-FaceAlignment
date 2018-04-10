@@ -36,21 +36,7 @@ def get_center(point1, point2):
     return cent
 
 def gen_5pt(points):
-    list = [] 
-    list.append(points[34])
-    list.append(points[37])
-    list.append(points[40])
-    list.append(points[43])
-    list.append(points[46])
-    list.append(points[49])
-    list.append(points[55])
-
-    for i in range(len(list)):
-        list[i] = list[i]/2
-
-    #print 'org 7pt=', list
     a = np.array([points[33], get_center(points[36], points[39]), get_center(points[42], points[45]), points[48], points[54]])
-    #print a
     return a/2
 
 def main(args):
