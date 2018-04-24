@@ -45,8 +45,8 @@ def gen_5pt(points):
     a = np.array([points[33], get_center(points[36], points[39]), get_center(points[42], points[45]), points[48], points[54]])
     return a/2
 
-def main(args, q, lock):
-
+#def main(args, q, lock):
+def task(args, q, lock):
     if args.gpus != None:
         caffe.set_device(args.gpus)
         caffe.set_mode_gpu()
@@ -94,21 +94,9 @@ def main(args, q, lock):
     for i in range(q.qsize()):
         img_dir = q.get()
         extract_features(img_dir, lock)
-    
-    '''
-    dir_list = get_img_dir_list(args.imgDir)
-    for img_dir in dir_list:
-        
-        ## 填充队列
-        #queueLock.acquire()
-        #workQueue.put(img_dir)
-        #print 'put ', img_dir
-        #print 'main() q.qsize=', q.qsize()
-        #queueLock.release()
-        #print '@@@@@@@queueLock release'
-    print 'main() q.qsize=', q.qsize() 
-    '''
-    
+   
+    print('extract completed\n')
+
 def get_img_dir_list(path):
     s = []
     g = os.walk(path)
@@ -120,41 +108,6 @@ def get_img_dir_list(path):
             s.append(os.path.join(path, dir_name))
 
     return s
-
-
-exitFlag = 0
-class myThread (threading.Thread):
-    def __init__(self, threadID, name, q):
-        threading.Thread.__init__(self)
-        self.threadID = threadID
-        self.name = name
-        self.q = q
-    def run(self):
-        print "Starting " + self.name
-        process_data(self.name, self.q)
-        print "Exiting " + self.name
-
-def process_data(q, name):
-    print 'q.qsize=', q.qsize
-    for i in range(q.qsize()):
-        img_dir = q.get()
-        #print img_dir
-        extract_features(img_dir)
-
-    '''
-    while not exitFlag:
-        queueLock.acquire()
-        print threadName,' lock acquried succ'
-        if not workQueue.empty():
-            img_dir = workQueue.get()
-            print 'get ', img_dir
-            queueLock.release()
-            extract_features(img_dir)
-        else:
-            print 'workQueue is empty'
-            queueLock.release()
-        time.sleep(1)
-    '''
 
 def extract_features(img_dir, lock):
     print 'load images from ', img_dir
@@ -213,13 +166,6 @@ def extract_features(img_dir, lock):
     print('NormalizedMeanError: {:.4f}'.format(average(p2pErrs)))
 
 
-threadList = []
-nameList = ["One", "Two", "Three", "Four", "Five"]
-queueLock = threading.Lock()
-workQueue = Queue.Queue(90000)
-threads = []
-threadID = 1
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='ECT for face alignment')
 
@@ -238,18 +184,6 @@ if __name__ == '__main__':
     po = Pool()
     lock = Manager().Lock()
     
-    #for i in range(0, 20):
-    #    threadList.append('Thread_' + str(i))
-    #    
-    ## 创建新线程
-    #for tName in threadList:
-    #    thread = myThread(threadID, tName, workQueue)
-    #    thread.start()
-    #    threads.append(thread)
-    #    threadID += 1
-    #
-    #main(parser.parse_args(), q)
-    
     dir_list = get_img_dir_list(parser.parse_args().imgDir)
     args = parser.parse_args()
 
@@ -263,30 +197,15 @@ if __name__ == '__main__':
 
     for i in range(start, end):
         q.put(dir_list[i])
-        
-    #for img_dir in dir_list:
-    #    q.put(img_dir)
     
     print 'q.qsize=', q.qsize()
     
     for i in range(0, 5):
-        po.apply_async(main, args=(parser.parse_args(), q, lock))
-
-    # 等待队列清空
-    while not workQueue.empty():
-        pass
+        po.apply_async(task, args=(parser.parse_args(), q, lock))
     
-    while not q.empty():
-        pass
-
     po.close()
     po.join()
-    # 通知线程是时候退出
-    exitFlag = 1
-     
-    # 等待所有线程完成
-    #for t in threads:
-    #    t.join()
+    multiprocessing.freeze_support()
 
     print "Exiting Main Thread"
 
